@@ -45,6 +45,7 @@ const spfAdvice = computed(() => {
 })
 
 const lastUpdatedText = computed(() => {
+  timeTicker.value // просто упоминаем, чтобы создать реактивную зависимость
   if (!lastUpdatedAt.value) return ""
 
   const now = new Date()
@@ -170,13 +171,16 @@ function getUserLocation() {
       }
   )
 }
+const timeTicker = ref(0) // добавляем
 
 onMounted(() => {
   getUserLocation()
   updateInterval = window.setInterval(fetchWeatherAndUV, 5 * 60 * 1000) // каждые 5 минут
   timeUpdateInterval = window.setInterval(() => {
-  }, 30 * 1000) // триггерим пересчёт текста раз в 30 сек
+    timeTicker.value++ // ТЕПЕРЬ тикер обновляется
+  }, 30 * 1000)
 })
+
 
 onUnmounted(() => {
   if (updateInterval !== null) clearInterval(updateInterval)
@@ -186,32 +190,10 @@ onUnmounted(() => {
 
 
 <style scoped>
-@media (min-width: 768px) {
-  .uvindex__label {
-    font-size: 6rem; /* чуть меньше заголовок */
-  }
-
-  .uvindex__status {
-    font-size: 20rem; /* крупно, но в пределах экрана */
-  }
-
-  .uvindex__advice, .uvindex__description {
-    font-size: 4rem;
-  }
-
-  .refresh-button {
-    font-size: 4rem;
-    padding: 0.8rem 2rem;
-  }
-
-  .uvindex__updated {
-    font-size: 3rem;
-  }
-}
-
 @media (min-width: 1024px) {
   .overlay {
     justify-content: center;
+    padding-top: 0
   }
 }
 
@@ -231,7 +213,7 @@ onUnmounted(() => {
 .uvindex__label {
   font-size: 4rem;
   line-height: 0.8;
-
+  padding-top: 1rem;
 }
 
 .uvindex__status {
