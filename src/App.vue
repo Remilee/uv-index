@@ -11,8 +11,12 @@
       <span v-if="lastUpdatedText" class="uvindex__updated">
       {{ lastUpdatedText }}
       </span>
+      <span v-if="cityName" class="uvindex__city">{{ cityName }}</span>
       <span class="uvindex__advice text-2xl mb-6" aria-live="assertive">{{ spfAdvice }}</span>
-      <span class="uvindex__description text-lg opacity-80">{{ weatherDescription }}</span>
+      <span class="uvindex__description text-lg opacity-80" aria-live="assertive">
+      <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon"/>
+        {{ weatherDescription }}
+      </span>
 
       <div v-if="!latitude || !longitude" class="geolocation-info">
         <p>Для точных данных о погоде и уровне UV требуется доступ к вашему местоположению.</p>
@@ -23,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue"
+import {ref, computed, onMounted, onUnmounted} from "vue"
 
 const uvIndex = ref<number | null>(null)
 const weatherDescription = ref("Loading...")
@@ -57,43 +61,72 @@ const lastUpdatedText = computed(() => {
   return `Обновлено ${diffHours} часов назад`
 })
 
-const weatherOptions: Record<number, { description: string, backgroundUrl: string }> = {
+const weatherOptions: Record<number, { description: string, backgroundGradient: string, icon: string }> = {
   0: {
     description: "Ясно",
-    backgroundUrl: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/869/869869.png" // солнце
   },
   2: {
     description: "Переменная облачность",
-    backgroundUrl: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #d7d2cc 0%, #304352 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/1163/1163624.png" // облако + солнце
   },
   3: {
     description: "Пасмурно",
-    backgroundUrl: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/414/414825.png" // облако
   },
   61: {
     description: "Небольшой дождь",
-    backgroundUrl: "https://images.unsplash.com/photo-1527766833261-b09c3163a791?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/414/414974.png" // дождик
   },
   63: {
     description: "Умеренный дождь",
-    backgroundUrl: "https://images.unsplash.com/photo-1527766833261-b09c3163a791?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #667db6 0%, #0082c8 50%, #0082c8 50%, #667db6 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/3313/3313983.png" // капли
   },
   65: {
     description: "Сильный дождь",
-    backgroundUrl: "https://images.unsplash.com/photo-1527766833261-b09c3163a791?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #485563 0%, #29323c 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/3076/3076129.png" // ливень
   },
   95: {
     description: "Гроза",
-    backgroundUrl: "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #2c3e50 0%, #000000 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/1146/1146869.png" // молния
   }
 }
 
+const weatherIcon = ref<string>("")
+
 function getWeatherInfo(code: number) {
-  return weatherOptions[code] ?? {
+  const info = weatherOptions[code] ?? {
     description: "Неизвестная погода",
-    backgroundUrl: "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+    backgroundGradient: "linear-gradient(135deg, #636363 0%, #a2ab58 100%)",
+    icon: "https://path-to-icons/unknown.svg"
+  }
+  weatherIcon.value = info.icon
+  return info
+}
+
+async function fetchCityName() {
+  if (latitude.value === null || longitude.value === null) return
+
+  try {
+    const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude.value}&lon=${longitude.value}`
+    )
+    const data = await response.json()
+
+    cityName.value = data.address.city || data.address.town || data.address.village || "Неизвестный город"
+  } catch (error) {
+    console.error("Ошибка при получении города:", error)
   }
 }
+
+const cityName = ref<string>("")
 
 async function fetchWeatherAndUV() {
   if (latitude.value === null || longitude.value === null) return
@@ -106,14 +139,11 @@ async function fetchWeatherAndUV() {
 
     uvIndex.value = data.current.uv_index
     const weatherCode = data.current.weather_code
-    const { description, backgroundUrl } = getWeatherInfo(weatherCode)
+    const {description, backgroundGradient} = getWeatherInfo(weatherCode)
 
     weatherDescription.value = description
     backgroundStyle.value = {
-      backgroundImage: `url('${backgroundUrl}')`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat"
+      background: backgroundGradient
     }
 
     lastUpdatedAt.value = new Date()
@@ -133,6 +163,7 @@ function getUserLocation() {
         latitude.value = position.coords.latitude
         longitude.value = position.coords.longitude
         fetchWeatherAndUV()
+        fetchCityName()
       },
       (error) => {
         console.error("Ошибка при получении геолокации:", error)
@@ -143,7 +174,8 @@ function getUserLocation() {
 onMounted(() => {
   getUserLocation()
   updateInterval = window.setInterval(fetchWeatherAndUV, 5 * 60 * 1000) // каждые 5 минут
-  timeUpdateInterval = window.setInterval(() => {}, 30 * 1000) // триггерим пересчёт текста раз в 30 сек
+  timeUpdateInterval = window.setInterval(() => {
+  }, 30 * 1000) // триггерим пересчёт текста раз в 30 сек
 })
 
 onUnmounted(() => {
@@ -154,19 +186,58 @@ onUnmounted(() => {
 
 
 <style scoped>
-/* Оставляем твои стили без изменений */
+@media (min-width: 768px) {
+  .uvindex__label {
+    font-size: 6rem; /* чуть меньше заголовок */
+  }
+
+  .uvindex__status {
+    font-size: 20rem; /* крупно, но в пределах экрана */
+  }
+
+  .uvindex__advice, .uvindex__description {
+    font-size: 4rem;
+  }
+
+  .refresh-button {
+    font-size: 4rem;
+    padding: 0.8rem 2rem;
+  }
+
+  .uvindex__updated {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .overlay {
+    justify-content: center;
+  }
+}
+
+.geolocation-info button,
+.refresh-button {
+  min-height: 44px;
+  min-width: 100px;
+  font-size: 1rem;
+}
+
+
 .uvindex {
   color: white;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
 }
 
 .uvindex__label {
-  font-size: 4vw;
+  font-size: 4rem;
+  line-height: 0.8;
+
 }
 
 .uvindex__status {
-  font-size: 13vw;
-  line-height: normal;
+  font-size: 10rem;
+  line-height: 1;
+  margin-bottom: 1rem;
 }
 
 .uvindex__label {
@@ -174,7 +245,7 @@ onUnmounted(() => {
 }
 
 .uvindex__advice, .uvindex__description {
-  font-size: 2.5vw;
+  font-size: 2.5rem;
 }
 
 .uvindex__description {
@@ -184,7 +255,6 @@ onUnmounted(() => {
 .widget-container {
   position: relative;
   width: 100%;
-  height: 100vh;
   border-radius: 15px;
   box-shadow: 0px 2px 16px rgb(39 100 247 / 70%);
   overflow: hidden;
@@ -192,22 +262,16 @@ onUnmounted(() => {
 }
 
 .overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  height: 100vh !important;
   background: rgba(0, 0, 0, 0.5); /* Полупрозрачный фон */
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
   padding: 20px;
   text-shadow: 2px 2px 6px rgb(39 100 247 / 70%); /* Тень для текста, чтобы улучшить читаемость */
 }
 
 html, body {
-  height: 100%;
   margin: 0;
   font-family: 'Inter', sans-serif;
 }
@@ -228,14 +292,14 @@ html, body {
 }
 
 .geolocation-info button:focus {
-  outline: 2px solid #ffb81c;
+  outline: 2px solid #1c7ed6;
 }
 
 .refresh-button {
   background: transparent;
-  border: 0.25vw solid white;
+  border: 0.25rem solid white;
   padding: 1rem 3rem;
-  font-size: 2vw;
+  font-size: 2rem;
   border-radius: 4rem;
   cursor: pointer;
   color: white;
@@ -252,9 +316,28 @@ html, body {
   background-color: rgba(204, 204, 204, 0.45);
   transition: background-color 0.2s ease;
 }
+
 .uvindex__updated {
   margin-top: 10px;
-  font-size: 1.5vw;
-  color: #cccccc;
+  font-size: 1.2rem;
+  color: #d8d8d8;
+}
+
+.uvindex__city {
+  color: #d8d8d8;
+  font-size: 2rem;
+  text-align: center;
+  line-height: 0.9;
+}
+
+.uvindex__advice {
+  color: white;
+}
+
+.weather-icon {
+  width: 2rem;
+  height: 2rem;
+  vertical-align: middle;
+  margin-right: 0.5rem;
 }
 </style>
