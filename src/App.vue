@@ -3,28 +3,33 @@
     <div class="uvindex overlay" role="region" aria-live="polite">
       <span class="uvindex__label">UV Index:</span>
       <span class="uvindex__status" role="status">
-        {{ uvIndex ?? "..." }}
+        {{ uvIndex !== null ? uvIndex : "..." }}
+        <span v-if="uvTrend" class="uvindex__trend">{{ uvTrend }}</span>
       </span>
+      <span class="uvindex__advice text-2xl mb-6" aria-live="assertive">{{ spfAdvice }}</span>
+      <span class="uvindex__description text-lg opacity-80" aria-live="assertive">
+        <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon"/>
+        {{ weatherDescription }}
+      </span>
+      <hr style="width: 30%; margin-top: 1rem;"/>
       <div v-if="showUpcomingUV && upcomingUV.length" class="uvindex-forecast">
         <h3>UV в ближайшие часы:</h3>
         <ul>
           <li v-for="entry in upcomingUV" :key="entry.time">
-            <time>{{ entry.time }}</time><span class="uvindex-card__index"> {{ entry.value.toFixed(1) }}</span>
+            <time>{{ entry.time }}</time>
+            <span class="uvindex-card__index">{{ entry.value.toFixed(1) }}</span>
           </li>
         </ul>
       </div>
+      <hr style="width: 30%; margin-bottom: 1rem;"/>
       <button @click="fetchWeatherAndUV" class="refresh-button" aria-label="Обновить данные">
         Обновить
       </button>
       <span v-if="lastUpdatedText" class="uvindex__updated">
-      {{ lastUpdatedText }}
+        {{ lastUpdatedText }}
       </span>
       <span v-if="cityName" class="uvindex__city">{{ cityName }}</span>
-      <span class="uvindex__advice text-2xl mb-6" aria-live="assertive">{{ spfAdvice }}</span>
-      <span class="uvindex__description text-lg opacity-80" aria-live="assertive">
-      <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon"/>
-        {{ weatherDescription }}
-      </span>
+
 
       <div v-if="!latitude || !longitude" class="geolocation-info">
         <p>Для точных данных о погоде и уровне UV требуется доступ к вашему местоположению.</p>
@@ -33,6 +38,7 @@
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted} from "vue"
@@ -149,7 +155,7 @@ async function fetchWeatherAndUV() {
 
     uvIndex.value = data.current.uv_index
     const weatherCode = data.current.weather_code
-    const { description, backgroundGradient } = getWeatherInfo(weatherCode)
+    const {description, backgroundGradient} = getWeatherInfo(weatherCode)
 
     weatherDescription.value = description
     backgroundStyle.value = {
@@ -166,7 +172,7 @@ async function fetchWeatherAndUV() {
     for (let i = 0; i < hours.length; i++) {
       if (hours[i] > now && upcomingUV.value.length < 4) {
         upcomingUV.value.push({
-          time: hours[i].toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: hours[i].toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
           value: data.hourly.uv_index[i]
         })
       }
@@ -175,6 +181,21 @@ async function fetchWeatherAndUV() {
     console.error("Ошибка при загрузке данных:", error)
   }
 }
+
+const uvTrend = computed(() => {
+  if (!upcomingUV.value.length) return null
+
+  const firstUV = upcomingUV.value[0].value
+  const lastUV = upcomingUV.value[upcomingUV.value.length - 1].value
+
+  if (lastUV > firstUV) {
+    return "↑" // стрелка вверх — уровень UV будет расти
+  } else if (lastUV < firstUV) {
+    return "↓" // стрелка вниз — уровень UV будет падать
+  } else {
+    return "→" // стрелка в сторону — уровень UV останется стабильным
+  }
+})
 const showUpcomingUV = computed(() => {
   const now = new Date()
   const hour = now.getHours()
@@ -199,6 +220,7 @@ function getUserLocation() {
       }
   )
 }
+
 const timeTicker = ref(0) // добавляем
 
 onMounted(() => {
@@ -241,20 +263,24 @@ onUnmounted(() => {
   font-size: 4rem;
   line-height: 0.8;
   padding-top: 1rem;
+  color: white
 }
 
 .uvindex__status {
   font-size: 10rem;
   line-height: 1;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center
 }
 
-.uvindex__label {
-  color: white;
-}
 
-.uvindex__advice, .uvindex__description {
+.uvindex__advice {
   font-size: 2.5rem;
+}
+
+.uvindex__description {
+  font-size: 1.2rem
 }
 
 .uvindex__description {
@@ -271,7 +297,7 @@ onUnmounted(() => {
 }
 
 .overlay {
-  height: 100vh !important;
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.5); /* Полупрозрачный фон */
   display: flex;
   flex-direction: column;
@@ -305,13 +331,12 @@ html, body {
 
 .refresh-button {
   background: transparent;
-  border: 0.25rem solid white;
-  padding: 1rem 3rem;
-  font-size: 2rem;
+  border: 1px solid white;
+  padding: 1rem;
+  font-size: 1.2rem;
   border-radius: 4rem;
   cursor: pointer;
   color: white;
-  margin: 10px 0;
   transition: background-color 0.2s ease;
 }
 
@@ -343,8 +368,8 @@ html, body {
 }
 
 .weather-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 1.2rem;
+  height: 1.2rem;
   vertical-align: middle;
   margin-right: 0.5rem;
 }
@@ -352,7 +377,6 @@ html, body {
 .uvindex-forecast {
   border-radius: 12px;
   padding: 1rem;
-  margin-top: 2rem;
   color: white;
   font-size: 1.5rem;
   text-align: center;
@@ -365,21 +389,44 @@ html, body {
   padding: 0;
   margin: 0.5rem 0 0 0;
   display: flex;
+  gap: 1rem;
 }
 
 .uvindex-forecast li {
   background-color: rgba(255, 255, 255, 0.1);
-  margin: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 1rem;
   display: flex;
   flex-direction: column;
 }
+
 .uvindex-forecast li time {
   color: #b5b5b5;
+  font-size: 1.2rem;
 }
+
 .uvindex-card__index {
   font-weight: bold;
-  font-size: 2rem;
+  font-size: 1.5rem;
 }
+
+.uvindex__trend {
+  font-size: 3rem;
+  margin-left: 1rem;
+  font-weight: bold;
+}
+
+.uvindex__trend {
+  color: white;
+}
+
+.uvindex__trend {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.uvindex__trend {
+  color: white; /* Цвет стрелки, можно изменить по желанию */
+}
+
 </style>
