@@ -29,8 +29,6 @@
         {{ lastUpdatedText }}
       </span>
       <span v-if="cityName" class="uvindex__city">{{ cityName }}</span>
-
-
       <div v-if="!latitude || !longitude" class="geolocation-info">
         <p>Для точных данных о погоде и уровне UV требуется доступ к вашему местоположению.</p>
         <button @click="getUserLocation" aria-label="Определить ваше местоположение">Определить местоположение</button>
@@ -399,9 +397,13 @@ html, body {
   display: flex;
   flex-direction: column;
 }
+.uvindex-forecast li:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+  transition: background-color 0.2s ease;
+}
 
 .uvindex-forecast li time {
-  color: #b5b5b5;
+  color: #e4e4e4;
   font-size: 1.2rem;
 }
 
