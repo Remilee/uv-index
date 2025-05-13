@@ -5,6 +5,14 @@
       <span class="uvindex__status" role="status">
         {{ uvIndex ?? "..." }}
       </span>
+      <div v-if="showUpcomingUV && upcomingUV.length" class="uvindex-forecast">
+        <h3>UV в ближайшие часы:</h3>
+        <ul>
+          <li v-for="entry in upcomingUV" :key="entry.time">
+            <time>{{ entry.time }}</time><span class="uvindex-card__index"> {{ entry.value.toFixed(1) }}</span>
+          </li>
+        </ul>
+      </div>
       <button @click="fetchWeatherAndUV" class="refresh-button" aria-label="Обновить данные">
         Обновить
       </button>
@@ -128,19 +136,20 @@ async function fetchCityName() {
 }
 
 const cityName = ref<string>("")
+const upcomingUV = ref<{ time: string; value: number }[]>([])
 
 async function fetchWeatherAndUV() {
   if (latitude.value === null || longitude.value === null) return
 
   try {
     const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${latitude.value}&longitude=${longitude.value}&current=uv_index,weather_code`
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude.value}&longitude=${longitude.value}&current=uv_index,weather_code&hourly=uv_index&timezone=auto`
     )
     const data = await response.json()
 
     uvIndex.value = data.current.uv_index
     const weatherCode = data.current.weather_code
-    const {description, backgroundGradient} = getWeatherInfo(weatherCode)
+    const { description, backgroundGradient } = getWeatherInfo(weatherCode)
 
     weatherDescription.value = description
     backgroundStyle.value = {
@@ -148,10 +157,29 @@ async function fetchWeatherAndUV() {
     }
 
     lastUpdatedAt.value = new Date()
+
+    // Отфильтруем ближайшие 4 часа
+    const now = new Date()
+    const hours = data.hourly.time.map((t: string) => new Date(t))
+    upcomingUV.value = []
+
+    for (let i = 0; i < hours.length; i++) {
+      if (hours[i] > now && upcomingUV.value.length < 4) {
+        upcomingUV.value.push({
+          time: hours[i].toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          value: data.hourly.uv_index[i]
+        })
+      }
+    }
   } catch (error) {
     console.error("Ошибка при загрузке данных:", error)
   }
 }
+const showUpcomingUV = computed(() => {
+  const now = new Date()
+  const hour = now.getHours()
+  return hour >= 10 && hour <= 17
+})
 
 function getUserLocation() {
   if (!navigator.geolocation) {
@@ -207,7 +235,6 @@ onUnmounted(() => {
 
 .uvindex {
   color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
 }
 
 .uvindex__label {
@@ -250,7 +277,6 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  text-shadow: 2px 2px 6px rgb(39 100 247 / 70%); /* Тень для текста, чтобы улучшить читаемость */
 }
 
 html, body {
@@ -321,5 +347,39 @@ html, body {
   height: 2rem;
   vertical-align: middle;
   margin-right: 0.5rem;
+}
+
+.uvindex-forecast {
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 2rem;
+  color: white;
+  font-size: 1.5rem;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.uvindex-forecast ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  display: flex;
+}
+
+.uvindex-forecast li {
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.uvindex-forecast li time {
+  color: #b5b5b5;
+}
+.uvindex-card__index {
+  font-weight: bold;
+  font-size: 2rem;
 }
 </style>
