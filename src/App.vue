@@ -1,41 +1,54 @@
 <template>
   <div :style="backgroundStyle" class="widget-container">
-    <div class="uvindex overlay" role="region" aria-live="polite">
-      <span class="uvindex__label">UV Index:</span>
-      <span class="uvindex__status" role="status">
-        {{ uvIndex !== null ? uvIndex : "..." }}
-        <span v-if="uvTrend" class="uvindex__trend">{{ uvTrend }}</span>
-      </span>
-      <span class="uvindex__advice text-2xl mb-6" aria-live="assertive">{{ spfAdvice }}</span>
-      <span class="uvindex__description text-lg opacity-80" aria-live="assertive">
-        <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon"/>
-        {{ weatherDescription }}
-      </span>
-      <hr style="width: 30%; margin-top: 1rem;"/>
-      <div v-if="showUpcomingUV && upcomingUV.length" class="uvindex-forecast">
-        <h3>UV в ближайшие часы:</h3>
-        <ul>
-          <li v-for="entry in upcomingUV" :key="entry.time">
-            <time>{{ entry.time }}</time>
-            <span class="uvindex-card__index">{{ entry.value.toFixed(1) }}</span>
-          </li>
-        </ul>
-      </div>
-      <hr style="width: 30%; margin-bottom: 1rem;"/>
-      <button @click="fetchWeatherAndUV" class="refresh-button" aria-label="Обновить данные">
-        Обновить
-      </button>
-      <span v-if="lastUpdatedText" class="uvindex__updated">
-        {{ lastUpdatedText }}
-      </span>
-      <span v-if="cityName" class="uvindex__city">{{ cityName }}</span>
-      <div v-if="!latitude || !longitude" class="geolocation-info">
-        <p>Для точных данных о погоде и уровне UV требуется доступ к вашему местоположению.</p>
-        <button @click="getUserLocation" aria-label="Определить ваше местоположение">Определить местоположение</button>
+    <div class="overlay">
+      <div class="uvindex-card" role="region" aria-live="polite">
+        <div class="uvindex-header">
+          <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon" />
+          <div class="uvindex-info">
+            <h1 class="uvindex__label">UV Index</h1>
+            <span class="uvindex__status" role="status">
+              {{ uvIndex !== null ? uvIndex : "..." }}
+              <span v-if="uvTrend" class="uvindex__trend">{{ uvTrend }}</span>
+            </span>
+            <span class="uvindex__advice">{{ spfAdvice }}</span>
+          </div>
+        </div>
+
+        <div class="uvindex__description">
+          {{ weatherDescription }}
+        </div>
+
+        <div v-if="showUpcomingUV && upcomingUV.length" class="uvindex-forecast">
+          <h2>UV в ближайшие часы</h2>
+          <ul>
+            <li v-for="entry in upcomingUV" :key="entry.time">
+              <time>{{ entry.time }}</time>
+              <span class="uvindex-card__index">{{ entry.value.toFixed(1) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="uvindex-footer">
+          <button @click="fetchWeatherAndUV" class="refresh-button" aria-label="Обновить данные">
+            Обновить
+          </button>
+          <span v-if="lastUpdatedText" class="uvindex__updated">
+            {{ lastUpdatedText }}
+          </span>
+          <span v-if="cityName" class="uvindex__city">{{ cityName }}</span>
+        </div>
+
+        <div v-if="!latitude || !longitude" class="geolocation-info">
+          <p>Для точных данных требуется доступ к вашему местоположению.</p>
+          <button @click="getUserLocation" class="geo-button" aria-label="Определить ваше местоположение">
+            Определить местоположение
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
 
 
 <script setup lang="ts">
@@ -80,6 +93,11 @@ const weatherOptions: Record<number, { description: string, backgroundGradient: 
     backgroundGradient: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)",
     icon: "https://cdn-icons-png.flaticon.com/512/869/869869.png" // солнце
   },
+  1: {
+    description: "В основном ясно",
+    backgroundGradient: "linear-gradient(135deg, #fceabb 0%, #f8b500 100%)",
+    icon: "https://cdn-icons-png.flaticon.com/512/869/869869.png"
+  },
   2: {
     description: "Переменная облачность",
     backgroundGradient: "linear-gradient(135deg, #d7d2cc 0%, #304352 100%)",
@@ -93,7 +111,7 @@ const weatherOptions: Record<number, { description: string, backgroundGradient: 
   61: {
     description: "Небольшой дождь",
     backgroundGradient: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
-    icon: "https://cdn-icons-png.flaticon.com/512/414/414974.png" // дождик
+    icon: "https://cdn-icons-png.flaticon.com/512/414/414974.png" // дождь
   },
   63: {
     description: "Умеренный дождь",
@@ -118,7 +136,7 @@ function getWeatherInfo(code: number) {
   const info = weatherOptions[code] ?? {
     description: "Неизвестная погода",
     backgroundGradient: "linear-gradient(135deg, #636363 0%, #a2ab58 100%)",
-    icon: "https://path-to-icons/unknown.svg"
+    icon: null
   }
   weatherIcon.value = info.icon
   return info
@@ -151,7 +169,7 @@ async function fetchWeatherAndUV() {
     )
     const data = await response.json()
 
-    uvIndex.value = data.current.uv_index
+    uvIndex.value = +data.current.uv_index.toFixed(1)
     const weatherCode = data.current.weather_code
     const {description, backgroundGradient} = getWeatherInfo(weatherCode)
 
@@ -162,7 +180,7 @@ async function fetchWeatherAndUV() {
 
     lastUpdatedAt.value = new Date()
 
-    // Отфильтруем ближайшие 4 часа
+    // Прогноз на ближайшие 4 часа
     const now = new Date()
     const hours = data.hourly.time.map((t: string) => new Date(t))
     upcomingUV.value = []
@@ -183,16 +201,18 @@ async function fetchWeatherAndUV() {
 const uvTrend = computed(() => {
   if (!upcomingUV.value.length) return null
 
-  const firstUV = upcomingUV.value[0].value
-  const lastUV = upcomingUV.value[upcomingUV.value.length - 1].value
-
-  if (lastUV > firstUV) {
-    return "↑" // стрелка вверх — уровень UV будет расти
-  } else if (lastUV < firstUV) {
-    return "↓" // стрелка вниз — уровень UV будет падать
-  } else {
-    return "→" // стрелка в сторону — уровень UV останется стабильным
+  const firstUV = uvIndex.value
+  const nextUV = upcomingUV.value[0].value
+  if (firstUV) {
+    if (nextUV > firstUV) {
+      return "↑"
+    } else if (nextUV < firstUV) {
+      return "↓"
+    } else {
+      return "→"
+    }
   }
+
 })
 const showUpcomingUV = computed(() => {
   const now = new Date()
@@ -238,197 +258,213 @@ onUnmounted(() => {
 
 
 <style scoped>
-@media (min-width: 1024px) {
-  .overlay {
-    justify-content: center;
-    padding-top: 0
-  }
-}
-
-.geolocation-info button,
-.refresh-button {
-  min-height: 44px;
-  min-width: 100px;
-  font-size: 1rem;
-}
-
-
-.uvindex {
-  color: white;
-}
-
-.uvindex__label {
-  font-size: 4rem;
-  line-height: 0.8;
-  padding-top: 1rem;
-  color: white
-}
-
-.uvindex__status {
-  font-size: 10rem;
-  line-height: 1;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center
-}
-
-
-.uvindex__advice {
-  font-size: 2.5rem;
-}
-
-.uvindex__description {
-  font-size: 1.2rem
-}
-
-.uvindex__description {
-  color: #d1d1d1;
-}
-
+/* Основной контейнер */
 .widget-container {
-  position: relative;
-  width: 100%;
-  border-radius: 15px;
-  box-shadow: 0px 2px 16px rgb(39 100 247 / 70%);
-  overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 1rem;
+  background: linear-gradient(135deg, #1e1e2f, #2e2e48);
+  box-sizing: border-box;
+  color: #fff;
+  font-family: "Segoe UI", sans-serif;
+  transition: background 0.5s ease;
 }
 
 .overlay {
-  height: 100dvh;
-  background: rgba(0, 0, 0, 0.5); /* Полупрозрачный фон */
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(12px);
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.25);
+  animation: fadeInUp 0.6s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Основная карточка */
+.uvindex-card {
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+}
+
+.uvindex-header {
+  display: flex;
   align-items: center;
-  padding: 20px;
-}
-
-html, body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-}
-
-.geolocation-info {
-  text-align: center;
-  color: white;
-  margin-top: 20px;
-}
-
-.geolocation-info button {
-  background-color: #1c7ed6;
-  color: white;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.geolocation-info button:focus {
-  outline: 2px solid #1c7ed6;
-}
-
-.refresh-button {
-  background: transparent;
-  border: 1px solid white;
-  padding: 1rem;
-  font-size: 1.2rem;
-  border-radius: 4rem;
-  cursor: pointer;
-  color: white;
-  transition: background-color 0.2s ease;
-}
-
-.refresh-button:hover {
-  background-color: rgba(204, 204, 204, 0.45);
-  transition: background-color 0.2s ease;
-}
-
-.refresh-button:focus {
-  background-color: rgba(204, 204, 204, 0.45);
-  transition: background-color 0.2s ease;
-}
-
-.uvindex__updated {
-  margin-top: 10px;
-  font-size: 1.2rem;
-  color: #d8d8d8;
-}
-
-.uvindex__city {
-  color: #d8d8d8;
-  font-size: 2rem;
-  text-align: center;
-  line-height: 0.9;
-}
-
-.uvindex__advice {
-  color: white;
+  gap: 1rem;
 }
 
 .weather-icon {
-  width: 1.2rem;
-  height: 1.2rem;
-  vertical-align: middle;
-  margin-right: 0.5rem;
+  width: 64px;
+  height: 64px;
+  animation: rotateIn 0.8s ease;
 }
 
-.uvindex-forecast {
-  border-radius: 12px;
-  padding: 1rem;
-  color: white;
+@keyframes rotateIn {
+  from {
+    opacity: 0;
+    transform: rotate(-20deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.uvindex-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.uvindex__label {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.uvindex__status {
+  font-size: 2.5rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: popIn 0.4s ease;
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.uvindex__trend {
   font-size: 1.5rem;
-  text-align: center;
-  width: 100%;
-  max-width: 400px;
+  opacity: 0.8;
+}
+
+.uvindex__advice {
+  font-size: 1rem;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* Описание погоды */
+.uvindex__description {
+  font-size: 1.125rem;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+/* Прогноз */
+.uvindex-forecast h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
 }
 
 .uvindex-forecast ul {
   list-style: none;
   padding: 0;
-  margin: 0.5rem 0 0 0;
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .uvindex-forecast li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
   background-color: rgba(255, 255, 255, 0.1);
   padding: 0.5rem 1rem;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
+  transition: background 0.3s;
+}
+
+.uvindex-forecast li:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.uvindex-footer {
   display: flex;
   flex-direction: column;
-}
-.uvindex-forecast li:hover {
-  background-color: rgba(255, 255, 255, 0.5);
-  transition: background-color 0.2s ease;
-}
-
-.uvindex-forecast li time {
-  color: #e4e4e4;
-  font-size: 1.2rem;
+  gap: 0.25rem;
+  align-items: center;
+  margin-top: 1rem;
 }
 
-.uvindex-card__index {
-  font-weight: bold;
-  font-size: 1.5rem;
+/* Кнопки */
+.refresh-button,
+.geo-button {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.uvindex__trend {
-  font-size: 3rem;
-  margin-left: 1rem;
-  font-weight: bold;
+.refresh-button:hover,
+.geo-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
 }
 
-.uvindex__trend {
-  color: white;
+.uvindex__updated,
+.uvindex__city {
+  font-size: 0.9rem;
+  opacity: 0.85;
 }
 
-.uvindex__trend {
-  display: inline-block;
-  transition: transform 0.3s ease;
+/* Геолокация */
+.geolocation-info {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.95rem;
+  opacity: 0.9;
 }
 
-.uvindex__trend {
-  color: white; /* Цвет стрелки, можно изменить по желанию */
-}
+/* Адаптивность */
+@media (max-width: 600px) {
+  .overlay {
+    padding: 1.25rem;
+  }
 
+  .weather-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .uvindex__status {
+    font-size: 2rem;
+  }
+
+  .uvindex__label {
+    font-size: 1rem;
+  }
+
+  .uvindex__description {
+    font-size: 1rem;
+  }
+}
 </style>
+
+
