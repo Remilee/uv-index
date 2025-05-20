@@ -3,7 +3,7 @@
     <div class="overlay">
       <div class="uvindex-card" role="region" aria-live="polite">
         <div class="uvindex-header">
-          <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon" />
+          <img v-if="weatherIcon" :src="weatherIcon" alt="" class="weather-icon"/>
           <div class="uvindex-info">
             <h1 class="uvindex__label">UV Index</h1>
             <span class="uvindex__status" role="status">
@@ -48,7 +48,6 @@
     </div>
   </div>
 </template>
-
 
 
 <script setup lang="ts">
