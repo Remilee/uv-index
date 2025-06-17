@@ -216,7 +216,7 @@ const uvTrend = computed(() => {
 const showUpcomingUV = computed(() => {
   const now = new Date()
   const hour = now.getHours()
-  return hour >= 10 && hour <= 17
+  return hour >= 8 && hour <= 18
 })
 
 function getUserLocation() {
