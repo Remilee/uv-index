@@ -182,22 +182,24 @@ async function fetchWeatherAndUV() {
     // Прогноз на ближайшие 4 часа
     // const now = new Date()
     // const hours = data.hourly.time.map((t: string) => new Date(t))
-    const nowUtc = Date.now()
-    upcomingUV.value = []
+    const now = new Date()
+    const currentHourIso = now.toISOString().slice(0, 13) // YYYY-MM-DDTHH
+    const upcomingUVArray = []
 
     for (let i = 0; i < data.hourly.time.length; i++) {
-      const t = data.hourly.time[i];
-      const hourUtcMs = new Date(t + 'Z').getTime();
-      if (hourUtcMs  > nowUtc && upcomingUV.value.length < 4) {
-        upcomingUV.value.push({
-          time: new Date(hourUtcMs).toLocaleTimeString('ru-RU', {
-            hour: '2-digit', minute: '2-digit',
+      const forecastHour = data.hourly.time[i].slice(0, 13)
+      if (forecastHour > currentHourIso && upcomingUVArray.length < 4) {
+        upcomingUVArray.push({
+          time: new Date(data.hourly.time[i]).toLocaleTimeString('ru-RU', {
+            hour: '2-digit',
+            minute: '2-digit',
             timeZone: data.timezone
           }),
           value: data.hourly.uv_index[i]
-        });
+        })
       }
     }
+    upcomingUV.value = upcomingUVArray
   } catch (error) {
     console.error("Ошибка при загрузке данных:", error)
   }
